@@ -239,12 +239,105 @@ er-priority-schedular/
 
 ## 7. Supplementary: ML-Based Severity Prediction
 
-A classifier (Logistic Regression / Random Forest / AdaBoost / XGBoost)
-predicts a 3-class severity tier from patient vitals, achieving ~81%
-test accuracy with XGBoost. This stands in for a real triage system in
-the pipeline above — the simulation only needs a tier label, this
-notebook is one way to produce one. Full model comparison, cross-
-validation, and leakage diagnostics are in the notebook itself.
+A classifier predicts patient severity tier from vitals and presentation
+data — standing in for a real triage system in the pipeline; the
+simulation only needs a tier label, this notebook is one way to produce
+one.
+
+### 7.1 Exploratory Data Analysis
+
+![ESI level distribution](docs/figures/ml_esi_distribution.png)
+
+*Confirms the dataset is realistically imbalanced — most patients fall
+into low-acuity categories (ESI 4-5), a small minority are critical
+(ESI 1) — which is why class weighting matters in training below.*
+
+![Correlation between vitals and ESI](docs/figures/ml_vitals_correlation.png)
+
+*Shows how raw vitals (heart rate, BP, SpO2, pain score) individually
+relate to severity before any feature engineering — sets a baseline for
+what the engineered features below are trying to sharpen.*
+
+### 7.2 Features
+
+- **Raw vitals:** Heart Rate, Systolic BP, Age, SpO2, Pain Score, Previous ER Visits
+- **Categorical:** Mental Status, Chief Complaint, Arrival Mode, Symptom Duration, Trauma, Chronic Condition
+- **Engineered — clinically motivated:** Shock Index, Oxygen Risk, Pulse Pressure, SpO2 Deficit, BP Deficit, High Pain / Low SpO2 / Tachycardia / Shock Flag / Low BP (threshold indicators)
+- **Engineered — composite/interaction:** Critical Score, Severity Score, Pain×Age, Shock×Oxygen, HR×Oxygen Risk, Age Risk, Log Shock
+
+### 7.3 Models Trained
+
+| Model | Accuracy | MAE |
+|---|---|---|
+| **XGBoost** | **0.8110** | **0.1890** |
+| Logistic Regression | 0.8035 | 0.1975 |
+| Random Forest | 0.7995 | 0.2005 |
+| AdaBoost | 0.7700 | 0.2300 |
+
+**Why Logistic Regression performs almost as well as XGBoost here:**
+this dataset's severity label is generated from a *linear combination*
+of threshold conditions (shock index, hypoxia, pain, etc.), and several
+of the strongest engineered features — Shock Index, Critical Score,
+Pulse Pressure — are themselves close to linear or monotonic with
+severity by construction. A linear model can capture most of that
+signal directly. XGBoost's edge comes from the smaller number of
+genuine interaction effects (e.g. Pain×Age, Shock×Oxygen) that a linear
+model structurally can't represent — which is also why the gap between
+them (0.8110 vs 0.8035) is real but modest, not dramatic.
+
+### 7.4 Classification Report (XGBoost)
+
+| Class | Precision | Recall | F1-score | Support |
+|---|---|---|---|---|
+| High | 0.58 | 0.23 | 0.33 | 90 |
+| Medium | 0.73 | 0.75 | 0.74 | 681 |
+| Low | 0.88 | 0.90 | 0.89 | 1229 |
+| **Accuracy** | | | **0.82** | 2000 |
+| Macro avg | 0.73 | 0.63 | 0.66 | 2000 |
+| Weighted avg | 0.81 | 0.82 | 0.81 | 2000 |
+
+**Worth noting honestly:** High-tier recall (0.23) is the weakest number
+here — the model misses roughly 3 in 4 truly critical cases. This is a
+direct consequence of class imbalance (only 90 High-tier patients in the
+2,000-row test set) rather than a modeling failure — class weighting
+helps precision somewhat, but it can't manufacture more minority-class
+examples to learn from. In a real deployment this would be the first
+thing to address, likely via oversampling or collecting more critical-
+case data specifically.
+
+![Confusion matrix](docs/figures/ml_confusion_matrix.png)
+
+### 7.5 Model Diagnostics: Feature Dominance & Leakage Checks
+
+Three checks, cheapest to most rigorous:
+1. **Feature importance concentration** — is one feature doing all the work?
+2. **Permutation importance** — robust to correlated-feature artifacts that tree importances can overstate
+3. **Correlation with target** — a blunt but useful leakage smell test
+
+**Top features by importance:**
+
+| Feature | Importance |
+|---|---|
+| Shock_Index | 0.1173 |
+| Critical_Score | 0.1089 |
+| Shock_Flag | 0.0765 |
+| Pain_Score | 0.0686 |
+| Pulse_Pressure | 0.0658 |
+| High_Pain | 0.0545 |
+| Heart_Rate | 0.0514 |
+| Oxygen_Risk | 0.0485 |
+| SpO2 | 0.0455 |
+| Arrival_Mode_Walk-in | 0.0452 |
+
+![Feature importance](docs/figures/ml_feature_importance.png)
+
+No single feature dominates (top feature is under 12% importance), and
+the top features are a sensible mix of the clinically-motivated signals
+(Shock Index, Pain Score, vitals directly) and the composite Critical
+Score — consistent with a model that's learning real clinical structure
+rather than exploiting one shortcut feature. As with the earlier
+diagnostics discussion, some of this overlap with the label-generating
+formula is expected and disclosed (see Notebook 1's intro), not hidden.
 
 ---
 
