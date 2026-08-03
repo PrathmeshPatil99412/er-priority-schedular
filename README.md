@@ -212,7 +212,7 @@ as a scheduling one.*
 ---
 
 ## 5. Repo Structure
-
+'''
 er-priority-schedular/
 ├── README.md
 ├── generate_dataset.py
@@ -225,7 +225,7 @@ er-priority-schedular/
 │ ├── scheduling_algorithm.pdf
 │ └── figures/
 └── results/
-
+'''
 ---
 
 ## 6. How to Run
