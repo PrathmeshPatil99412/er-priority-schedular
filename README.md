@@ -212,20 +212,21 @@ as a scheduling one.*
 ---
 
 ## 5. Repo Structure
-'''
+
+```text
 er-priority-schedular/
 ├── README.md
 ├── generate_dataset.py
 ├── data/ed_triage_synthetic.csv
 ├── notebooks/
-│ ├── 01_ml_esi_triage_classifier.ipynb
-│ └── 02_ed_scheduling_simulation.ipynb
+│   ├── 01_ml_esi_triage_classifier.ipynb
+│   └── 02_ed_scheduling_simulation.ipynb
 ├── docs/
-│ ├── architecture.png
-│ ├── scheduling_algorithm.pdf
-│ └── figures/
+│   ├── architecture.png
+│   ├── scheduling_algorithm.pdf
+│   └── figures/
 └── results/
-'''
+```
 ---
 
 ## 6. How to Run
